@@ -1,0 +1,1359 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ระบบรายงานคุณภาพน้ำนมดิบ</title>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════════
+   VARIABLES & RESET
+═══════════════════════════════════════════════ */
+:root {
+  --navy:    #0f2236;
+  --navy2:   #1a3550;
+  --teal:    #0a7373;
+  --teal2:   #0d9488;
+  --amber:   #d97706;
+  --red:     #dc2626;
+  --green:   #16a34a;
+  --bg:      #f0f4f7;
+  --card:    #ffffff;
+  --border:  #d1dae3;
+  --text:    #1e2d3d;
+  --muted:   #64748b;
+  --pass-bg: #dcfce7; --pass-tx: #15803d;
+  --warn-bg: #fef9c3; --warn-tx: #92400e;
+  --fail-bg: #fee2e2; --fail-tx: #991b1b;
+  --mono: 'IBM Plex Mono', monospace;
+  --sans: 'Sarabun', sans-serif;
+  --shadow: 0 2px 12px rgba(0,0,0,.08);
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--sans); background: var(--bg); color: var(--text); min-height: 100vh; }
+
+/* ═══════════════════════════════════════════════
+   LAYOUT
+═══════════════════════════════════════════════ */
+.app { display: flex; flex-direction: column; min-height: 100vh; }
+
+/* ── NAV ── */
+nav {
+  background: var(--navy);
+  padding: 0 32px;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  height: 56px;
+  position: sticky; top: 0; z-index: 100;
+  box-shadow: 0 2px 8px rgba(0,0,0,.25);
+}
+.nav-brand {
+  font-size: 15px; font-weight: 700; color: #fff;
+  margin-right: 32px; white-space: nowrap;
+  display: flex; align-items: center; gap: 8px;
+}
+.nav-brand span { color: var(--teal2); }
+.nav-tabs { display: flex; gap: 2px; flex: 1; }
+.nav-tab {
+  padding: 0 18px; height: 56px; display: flex; align-items: center;
+  font-size: 13.5px; font-weight: 500; color: #94a3b8;
+  cursor: pointer; border: none; background: none;
+  border-bottom: 3px solid transparent; transition: all .2s;
+  white-space: nowrap;
+}
+.nav-tab:hover { color: #e2e8f0; }
+.nav-tab.active { color: #fff; border-bottom-color: var(--teal2); }
+.nav-tab.admin-tab { color: #f59e0b; }
+.nav-tab.admin-tab.active { border-bottom-color: #f59e0b; }
+.nav-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+.btn-logout {
+  font-size: 12px; padding: 6px 14px; border-radius: 6px;
+  background: rgba(255,255,255,.1); color: #e2e8f0;
+  border: 1px solid rgba(255,255,255,.15); cursor: pointer;
+  font-family: var(--sans); transition: background .2s;
+}
+.btn-logout:hover { background: rgba(255,255,255,.2); }
+.admin-badge {
+  font-family: var(--mono); font-size: 10px;
+  background: #92400e; color: #fef3c7;
+  padding: 3px 8px; border-radius: 20px;
+}
+
+/* ── PAGE ── */
+.page { display: none; flex: 1; padding: 32px 24px 60px; max-width: 1100px; margin: 0 auto; width: 100%; }
+.page.active { display: block; animation: fadeIn .3s ease; }
+@keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+
+/* ── PAGE HEADER ── */
+.page-header { margin-bottom: 28px; }
+.page-header h1 { font-size: 22px; font-weight: 700; color: var(--navy); }
+.page-header p { font-size: 13.5px; color: var(--muted); margin-top: 4px; }
+
+/* ── CARDS ── */
+.card {
+  background: var(--card); border-radius: 12px;
+  border: 1px solid var(--border); box-shadow: var(--shadow);
+  overflow: hidden; margin-bottom: 24px;
+}
+.card-header {
+  background: var(--navy); padding: 14px 20px;
+  font-size: 13px; font-weight: 600; color: #e2e8f0;
+  display: flex; align-items: center; gap: 8px;
+}
+.card-body { padding: 20px; }
+
+/* ── METRICS GRID ── */
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 14px; margin-bottom: 24px;
+}
+.metric-card {
+  background: var(--card); border-radius: 10px;
+  border: 1px solid var(--border); padding: 16px 14px 12px;
+  position: relative; overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0,0,0,.05);
+  animation: fadeUp .4s ease both;
+}
+.metric-card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; }
+.metric-card.pass::before { background: var(--green); }
+.metric-card.warn::before { background: var(--amber); }
+.metric-card.fail::before { background: var(--red); }
+.metric-label { font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing:.06em; color: var(--muted); margin-bottom: 4px; }
+.metric-value { font-family: var(--mono); font-size: 24px; font-weight: 500; line-height: 1; margin-bottom: 3px; }
+.metric-card.pass .metric-value { color: var(--green); }
+.metric-card.warn .metric-value { color: var(--amber); }
+.metric-card.fail .metric-value { color: var(--red); }
+.metric-std { font-size: 10.5px; color: var(--muted); margin-bottom: 8px; }
+.pill { display: inline-flex; align-items: center; gap: 3px; font-size: 10px; font-weight: 600; padding: 3px 9px; border-radius: 20px; }
+.pill.pass { background: var(--pass-bg); color: var(--pass-tx); }
+.pill.warn { background: var(--warn-bg); color: var(--warn-tx); }
+.pill.fail { background: var(--fail-bg); color: var(--fail-tx); }
+
+/* ── TABLE ── */
+.table-wrap { overflow-x: auto; border-radius: 10px; border: 1px solid var(--border); }
+table { width: 100%; border-collapse: collapse; font-size: 13px; background: var(--card); }
+thead tr { background: var(--navy); color: #fff; }
+thead th { padding: 10px 12px; text-align: center; font-size: 11.5px; font-weight: 600; white-space: nowrap; }
+thead th:first-child { text-align: left; }
+tbody tr { border-bottom: 1px solid #edf2f7; transition: background .15s; }
+tbody tr:hover { background: #f8fafc; }
+tbody tr:last-child { border-bottom: none; }
+td { padding: 9px 12px; text-align: center; }
+td:first-child { text-align: left; font-weight: 500; }
+.chip { display: inline-block; font-family: var(--mono); font-size: 11.5px; font-weight: 500; padding: 2px 8px; border-radius: 5px; }
+.chip.pass { background: var(--pass-bg); color: var(--pass-tx); }
+.chip.warn { background: var(--warn-bg); color: var(--warn-tx); }
+.chip.ok   { background: #e0f2fe; color: #0369a1; }
+.chip.red  { background: var(--fail-bg); color: var(--fail-tx); }
+
+/* ── INFO / WARN BOXES ── */
+.info-box { background: #f0fdf4; border: 1px solid #bbf7d0; border-left: 4px solid var(--green); border-radius: 8px; padding: 12px 16px; font-size: 13px; color: #14532d; margin: 16px 0; line-height: 1.6; }
+.warn-box { background: #fffbeb; border: 1px solid #fde68a; border-left: 4px solid var(--amber); border-radius: 8px; padding: 12px 16px; font-size: 13px; color: #78350f; margin: 16px 0; line-height: 1.6; }
+
+/* ─── SECTION TITLE ── */
+.section-title {
+  font-size: 12px; font-weight: 600; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--teal);
+  margin: 28px 0 14px; display: flex; align-items: center; gap: 8px;
+}
+.section-title::after { content:''; flex:1; height:1px; background: var(--border); }
+
+/* ═══════════════════════════════════════════════
+   LOGIN MODAL
+═══════════════════════════════════════════════ */
+.modal-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.55); z-index: 999;
+  align-items: center; justify-content: center;
+  backdrop-filter: blur(4px);
+}
+.modal-overlay.show { display: flex; animation: fadeIn .2s ease; }
+.modal {
+  background: var(--card); border-radius: 16px; padding: 36px 32px;
+  width: 100%; max-width: 360px; box-shadow: 0 20px 60px rgba(0,0,0,.3);
+}
+.modal-logo { text-align: center; margin-bottom: 24px; }
+.modal-logo .icon { font-size: 40px; }
+.modal-logo h2 { font-size: 18px; font-weight: 700; color: var(--navy); margin-top: 8px; }
+.modal-logo p { font-size: 12.5px; color: var(--muted); margin-top: 4px; }
+.form-group { margin-bottom: 16px; }
+.form-group label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .05em; }
+.form-group input {
+  width: 100%; padding: 10px 14px; border-radius: 8px;
+  border: 1.5px solid var(--border); font-family: var(--sans); font-size: 14px;
+  outline: none; transition: border-color .2s;
+}
+.form-group input:focus { border-color: var(--teal2); }
+.btn-primary {
+  width: 100%; padding: 11px; border-radius: 8px;
+  background: var(--teal); color: #fff; border: none;
+  font-family: var(--sans); font-size: 14px; font-weight: 600;
+  cursor: pointer; transition: background .2s; margin-top: 4px;
+}
+.btn-primary:hover { background: var(--teal2); }
+.login-error { font-size: 12.5px; color: var(--red); text-align: center; margin-top: 10px; display: none; }
+
+/* ═══════════════════════════════════════════════
+   ADMIN FORM
+═══════════════════════════════════════════════ */
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.form-grid.cols3 { grid-template-columns: 1fr 1fr 1fr; }
+.form-item { display: flex; flex-direction: column; gap: 5px; }
+.form-item label { font-size: 11.5px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.form-item input, .form-item select {
+  padding: 9px 12px; border-radius: 7px;
+  border: 1.5px solid var(--border); font-family: var(--sans); font-size: 13.5px;
+  outline: none; transition: border-color .2s; background: #fff;
+}
+.form-item input:focus, .form-item select:focus { border-color: var(--teal2); }
+.form-item input.warn-field { border-color: var(--amber); background: #fffbeb; }
+.field-hint { font-size: 10.5px; color: var(--muted); margin-top: 2px; }
+.field-hint.warn { color: var(--amber); }
+
+.form-section-label {
+  grid-column: 1 / -1; font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .1em;
+  color: var(--teal); padding: 8px 0 4px;
+  border-bottom: 1px solid var(--border); margin-bottom: 4px;
+}
+.radio-group { display: flex; gap: 16px; align-items: center; padding-top: 4px; }
+.radio-group label { font-size: 13.5px; display: flex; align-items: center; gap: 6px; cursor: pointer; font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--text); }
+
+.btn-submit {
+  padding: 11px 28px; border-radius: 8px;
+  background: var(--teal); color: #fff; border: none;
+  font-family: var(--sans); font-size: 14px; font-weight: 600;
+  cursor: pointer; transition: background .2s;
+}
+.btn-submit:hover { background: var(--teal2); }
+.btn-cancel {
+  padding: 11px 20px; border-radius: 8px;
+  background: #f1f5f9; color: var(--muted); border: 1px solid var(--border);
+  font-family: var(--sans); font-size: 14px; font-weight: 500;
+  cursor: pointer; transition: background .2s; margin-left: 8px;
+}
+.btn-cancel:hover { background: #e2e8f0; }
+.btn-danger {
+  padding: 6px 14px; border-radius: 6px;
+  background: var(--fail-bg); color: var(--fail-tx); border: 1px solid #fca5a5;
+  font-family: var(--sans); font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: background .2s;
+}
+.btn-danger:hover { background: #fecaca; }
+.btn-edit {
+  padding: 6px 14px; border-radius: 6px;
+  background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd;
+  font-family: var(--sans); font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: background .2s; margin-right: 4px;
+}
+.btn-edit:hover { background: #bae6fd; }
+
+/* toast */
+.toast {
+  position: fixed; bottom: 28px; right: 28px;
+  background: var(--navy); color: #fff; padding: 12px 20px;
+  border-radius: 10px; font-size: 13.5px; z-index: 9999;
+  display: none; box-shadow: 0 4px 20px rgba(0,0,0,.3);
+  animation: fadeIn .3s ease;
+}
+.toast.show { display: block; }
+.toast.success { background: var(--green); }
+.toast.error   { background: var(--red); }
+
+/* loading */
+.loading { text-align: center; padding: 40px; color: var(--muted); font-size: 14px; }
+.spinner { display: inline-block; width: 24px; height: 24px; border: 3px solid var(--border); border-top-color: var(--teal); border-radius: 50%; animation: spin .7s linear infinite; margin-bottom: 10px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes fadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+
+/* ── Responsive ── */
+@media (max-width: 700px) {
+  nav { padding: 0 16px; }
+  .nav-brand { font-size: 13px; margin-right: 16px; }
+  .nav-tab { padding: 0 12px; font-size: 12.5px; }
+  .page { padding: 20px 16px 40px; }
+  .metrics-grid { grid-template-columns: 1fr 1fr; }
+  .form-grid { grid-template-columns: 1fr; }
+  .form-grid.cols3 { grid-template-columns: 1fr 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- ═══ TOAST ═══════════════════════════════════════════════════════════════ -->
+<div class="toast" id="toast"></div>
+
+<!-- ═══ LOGIN MODAL ════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="loginModal">
+  <div class="modal">
+    <div class="modal-logo">
+      <div class="icon">🔐</div>
+      <h2>Admin Login</h2>
+      <p>เฉพาะผู้ดูแลระบบเท่านั้น</p>
+    </div>
+    <div class="form-group">
+      <label>Username</label>
+      <input type="text" id="loginUser" placeholder="กรอก username" autocomplete="username">
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="loginPass" placeholder="กรอก password" autocomplete="current-password"
+             onkeydown="if(event.key==='Enter') doLogin()">
+    </div>
+    <button class="btn-primary" onclick="doLogin()">เข้าสู่ระบบ</button>
+    <div class="login-error" id="loginError">❌ Username หรือ Password ไม่ถูกต้อง</div>
+    <p style="font-size:11px;color:#94a3b8;text-align:center;margin-top:16px">
+      กด ESC หรือ <span style="cursor:pointer;text-decoration:underline" onclick="closeLogin()">กลับหน้าแรก</span>
+    </p>
+  </div>
+</div>
+
+<!-- ═══ APP SHELL ══════════════════════════════════════════════════════════ -->
+<div class="app">
+
+  <!-- NAV -->
+  <nav>
+    <div class="nav-brand">🥛 <span>ระบบคุณภาพน้ำนม</span></div>
+    <div class="nav-tabs">
+      <button class="nav-tab active" onclick="showPage('summary')">📊 สรุปภาพรวม</button>
+      <button class="nav-tab" onclick="showPage('daily')">📅 รายงานประจำวัน</button>
+      <button class="nav-tab admin-tab" id="adminTab" onclick="requireAdmin('adminPanel')">🔐 Admin</button>
+    </div>
+    <div class="nav-right" id="adminNavRight" style="display:none">
+      <span class="admin-badge">ADMIN</span>
+      <button class="btn-logout" onclick="logout()">ออกจากระบบ</button>
+    </div>
+  </nav>
+
+  <!-- ══════════════ PAGE: SUMMARY ════════════════════════════════════════ -->
+  <div class="page active" id="page-summary">
+    <div class="page-header">
+      <h1>📊 สรุปภาพรวมคุณภาพน้ำนมดิบ</h1>
+      <p id="summaryMonth">กำลังโหลดข้อมูล...</p>
+    </div>
+
+    <!-- KPI Cards -->
+    <div id="metricsContainer">
+      <div class="loading"><div class="spinner"></div><br>กำลังโหลดข้อมูลจาก Google Sheets...</div>
+    </div>
+
+    <!-- Summary Table -->
+    <div class="section-title">📋 ตารางสรุปค่าเฉลี่ยทุกพารามิเตอร์</div>
+    <div class="card">
+      <div class="card-header">📊 ค่าเฉลี่ยประจำเดือน vs มาตรฐาน</div>
+      <div class="card-body" style="padding:0">
+        <div class="table-wrap" style="border:none;border-radius:0">
+          <table id="summaryTable">
+            <thead>
+              <tr>
+                <th style="text-align:left;min-width:180px">พารามิเตอร์</th>
+                <th>มาตรฐาน</th>
+                <th>ค่าเฉลี่ย</th>
+                <th>สถานะ</th>
+              </tr>
+            </thead>
+            <tbody id="summaryTableBody">
+              <tr><td colspan="4" class="loading">กำลังโหลด...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pasteurized Summary -->
+    <div class="section-title">🥛 สรุปคุณภาพนมพาสเจอร์ไรซ์ (ค่าเฉลี่ย)</div>
+    <div class="card">
+      <div class="card-header">🥛 แยกตามรสชาติ</div>
+      <div class="card-body" style="padding:0">
+        <div class="table-wrap" style="border:none;border-radius:0">
+          <table>
+            <thead>
+              <tr>
+                <th style="text-align:left">รสชาติ</th>
+                <th>% Fat</th><th>°Brix</th><th>Temp พาส (°C)</th>
+                <th>Temp เย็น (°C)</th><th>SPC</th><th>Coliform</th>
+                <th>E. coli</th><th>Peroxidase</th><th>สรุป</th>
+              </tr>
+            </thead>
+            <tbody id="pastTableBody">
+              <tr><td colspan="10" class="loading">กำลังโหลด...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="info-box" id="summaryInfoBox" style="display:none">
+      ✅ <strong>นมพาสเจอร์ไรซ์ทุกรสชาติผ่านมาตรฐานทุกรายการ</strong> — ไม่พบ Coliform และ E. coli
+    </div>
+  </div>
+
+  <!-- ══════════════ PAGE: DAILY REPORT ═══════════════════════════════════ -->
+  <div class="page" id="page-daily">
+    <div class="page-header">
+      <h1>📅 รายงานตรวจคุณภาพน้ำนมดิบรายวัน</h1>
+      <p>ผลการตรวจวัดทุกครั้งในเดือนนี้</p>
+    </div>
+
+    <!-- Filter -->
+    <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;align-items:center">
+      <select id="filterMonth" onchange="loadDailyData()"
+        style="padding:8px 12px;border-radius:7px;border:1.5px solid var(--border);font-family:var(--sans);font-size:13px;outline:none">
+        <option value="">— เดือนทั้งหมด —</option>
+      </select>
+      <input type="text" id="filterSearch" placeholder="🔍 ค้นหา..." oninput="filterTable()"
+        style="padding:8px 12px;border-radius:7px;border:1.5px solid var(--border);font-family:var(--sans);font-size:13px;outline:none;min-width:200px">
+      <span id="recordCount" style="font-size:12.5px;color:var(--muted);margin-left:4px"></span>
+    </div>
+
+    <div class="card">
+      <div class="card-header">📋 บันทึกการตรวจวัดทั้งหมด</div>
+      <div class="card-body" style="padding:0">
+        <div class="table-wrap" style="border:none;border-radius:0">
+          <table id="dailyTable">
+            <thead>
+              <tr>
+                <th style="text-align:left">วันที่</th>
+                <th>ถัง</th><th>อุณหภูมิ(°C)</th><th>สี/กลิ่น</th>
+                <th>pH</th><th>Total Solids</th><th>% Fat</th><th>SNF</th>
+                <th>Sp.Gravity</th><th>Somatic Cells</th>
+                <th>Antibiotic</th><th>SPC</th><th>Coliform</th>
+                <th>Meth.Blue</th><th>Resazurin</th>
+              </tr>
+            </thead>
+            <tbody id="dailyTableBody">
+              <tr><td colspan="15" class="loading"><div class="spinner"></div><br>กำลังโหลด...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pasteurized daily -->
+    <div class="section-title">🥛 บันทึกตรวจคุณภาพนมพาสเจอร์ไรซ์</div>
+    <div class="card">
+      <div class="card-header">🧫 ผลการตรวจแต่ละครั้ง</div>
+      <div class="card-body" style="padding:0">
+        <div class="table-wrap" style="border:none;border-radius:0">
+          <table>
+            <thead>
+              <tr>
+                <th style="text-align:left">วันที่</th><th>รสชาติ</th><th>บรรจุภัณฑ์</th>
+                <th>% Fat</th><th>°Brix</th><th>pH</th><th>SNF</th><th>Sp.Gravity</th>
+                <th>Temp พาส</th><th>Temp เย็น</th><th>SPC</th><th>Coliform</th>
+                <th>E.coli</th><th>Peroxidase</th>
+              </tr>
+            </thead>
+            <tbody id="pastDailyBody">
+              <tr><td colspan="14" class="loading">กำลังโหลด...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════ PAGE: ADMIN PANEL ════════════════════════════════════ -->
+  <div class="page" id="page-adminPanel">
+    <div class="page-header">
+      <h1>🔐 Admin Panel — กรอกและจัดการข้อมูล</h1>
+      <p>เฉพาะผู้ดูแลระบบ | ข้อมูลจะบันทึกลง Google Sheets ทันที</p>
+    </div>
+
+    <!-- TABS inside admin -->
+    <div style="display:flex;gap:8px;margin-bottom:24px;flex-wrap:wrap">
+      <button class="btn-submit" onclick="showAdminTab('formRaw')" id="tabFormRaw">➕ เพิ่มข้อมูลน้ำนมดิบ</button>
+      <button class="btn-cancel" onclick="showAdminTab('formPast')" id="tabFormPast">➕ เพิ่มนมพาสเจอร์ไรซ์</button>
+      <button class="btn-cancel" onclick="showAdminTab('manageRaw')" id="tabManageRaw">📋 จัดการข้อมูลดิบ</button>
+      <button class="btn-cancel" onclick="showAdminTab('managePast')" id="tabManagePast">📋 จัดการพาสเจอร์</button>
+    </div>
+
+    <!-- FORM: RAW MILK -->
+    <div id="admin-formRaw">
+      <div class="card">
+        <div class="card-header">🧪 กรอกผลตรวจน้ำนมดิบ</div>
+        <div class="card-body">
+          <form id="rawForm" onsubmit="submitRaw(event)">
+            <div class="form-grid cols3">
+
+              <div class="form-section-label">📅 ข้อมูลทั่วไป</div>
+              <div class="form-item">
+                <label>วันที่ตรวจ *</label>
+                <input type="date" id="r_date" required>
+              </div>
+              <div class="form-item">
+                <label>หมายเลขถัง *</label>
+                <select id="r_tank" required>
+                  <option value="">-- เลือก --</option>
+                  <option>RT1</option><option>RT2</option><option>RT3</option>
+                </select>
+              </div>
+
+              <div class="form-section-label">🌡 คุณสมบัติกายภาพ</div>
+              <div class="form-item">
+                <label>อุณหภูมิ (°C)</label>
+                <input type="number" id="r_temp" step="0.1" placeholder="เช่น 1.5">
+                <span class="field-hint">มาตรฐาน: &lt; 6°C</span>
+              </div>
+              <div class="form-item">
+                <label>สี</label>
+                <select id="r_color">
+                  <option value="ปกติ">✓ ปกติ</option>
+                  <option value="ผิดปกติ">✗ ผิดปกติ</option>
+                </select>
+              </div>
+              <div class="form-item">
+                <label>กลิ่น</label>
+                <select id="r_smell">
+                  <option value="ปกติ">✓ ปกติ</option>
+                  <option value="ผิดปกติ">✗ ผิดปกติ</option>
+                </select>
+              </div>
+              <div class="form-item">
+                <label>ลักษณะเนื้อนม</label>
+                <select id="r_texture">
+                  <option value="ปกติ">✓ ไม่เป็นก้อน</option>
+                  <option value="ผิดปกติ">✗ ผิดปกติ</option>
+                </select>
+              </div>
+              <div class="form-item">
+                <label>Alcohol Test 75%</label>
+                <select id="r_alcohol">
+                  <option value="ผ่าน">✓ ไม่ตกตะกอน</option>
+                  <option value="ไม่ผ่าน">✗ ตกตะกอน</option>
+                </select>
+              </div>
+              <div class="form-item">
+                <label>Clot on Boiling</label>
+                <select id="r_clot">
+                  <option value="ผ่าน">✓ ไม่ตกตะกอน</option>
+                  <option value="ไม่ผ่าน">✗ ตกตะกอน</option>
+                </select>
+              </div>
+
+              <div class="form-section-label">⚗️ คุณสมบัติทางเคมี</div>
+              <div class="form-item">
+                <label>pH</label>
+                <input type="number" id="r_ph" step="0.01" placeholder="เช่น 6.74" oninput="checkField('r_ph',6.6,6.9)">
+                <span class="field-hint" id="hint_r_ph">มาตรฐาน: 6.6 – 6.9</span>
+              </div>
+              <div class="form-item">
+                <label>Total Solids (%)</label>
+                <input type="number" id="r_ts" step="0.01" placeholder="เช่น 12.35" oninput="checkField('r_ts',12.5,12.7)">
+                <span class="field-hint" id="hint_r_ts">มาตรฐาน: 12.5 – 12.7</span>
+              </div>
+              <div class="form-item">
+                <label>% Fat</label>
+                <input type="number" id="r_fat" step="0.01" placeholder="เช่น 3.8" oninput="checkFieldMin('r_fat',3.5)">
+                <span class="field-hint" id="hint_r_fat">มาตรฐาน: ≥ 3.5%</span>
+              </div>
+              <div class="form-item">
+                <label>Solid Non Fat (%)</label>
+                <input type="number" id="r_snf" step="0.01" placeholder="เช่น 8.43" oninput="checkFieldMin('r_snf',8.25)">
+                <span class="field-hint" id="hint_r_snf">มาตรฐาน: ≥ 8.25%</span>
+              </div>
+              <div class="form-item">
+                <label>Specific Gravity</label>
+                <input type="number" id="r_sg" step="0.0001" placeholder="เช่น 1.0285" oninput="checkField('r_sg',1.028,1.034)">
+                <span class="field-hint" id="hint_r_sg">มาตรฐาน: 1.028 – 1.034</span>
+              </div>
+
+              <div class="form-section-label">🦠 จุลินทรีย์</div>
+              <div class="form-item">
+                <label>Methylene Blue (ชม.)</label>
+                <input type="number" id="r_mb" step="0.5" placeholder="เช่น 7">
+                <span class="field-hint">มาตรฐาน: ≤ 4 ชม.</span>
+              </div>
+              <div class="form-item">
+                <label>Resazurin (เกรด)</label>
+                <input type="number" id="r_res" step="0.5" placeholder="เช่น 5">
+                <span class="field-hint">มาตรฐาน: ≥ เกรด 4.5</span>
+              </div>
+              <div class="form-item">
+                <label>Somatic Cells (cell/cm³)</label>
+                <input type="number" id="r_sc" placeholder="เช่น 142" oninput="checkFieldMax('r_sc',500000)">
+                <span class="field-hint" id="hint_r_sc">มาตรฐาน: ≤ 500,000</span>
+              </div>
+              <div class="form-item">
+                <label>Antibiotic</label>
+                <select id="r_anti">
+                  <option value="ไม่พบ">✓ ไม่พบ</option>
+                  <option value="พบ">✗ พบ</option>
+                </select>
+              </div>
+              <div class="form-item">
+                <label>SPC (cfu/ml)</label>
+                <input type="number" id="r_spc" placeholder="เช่น 100" oninput="checkFieldMax('r_spc',400000)">
+                <span class="field-hint" id="hint_r_spc">มาตรฐาน: ≤ 400,000</span>
+              </div>
+              <div class="form-item">
+                <label>Coliform (cfu/ml)</label>
+                <input type="number" id="r_col" placeholder="เช่น 12" oninput="checkFieldMax('r_col',1000)">
+                <span class="field-hint" id="hint_r_col">มาตรฐาน: ≤ 1,000</span>
+              </div>
+            </div>
+
+            <div style="margin-top:24px;display:flex;align-items:center;gap:4px">
+              <button type="submit" class="btn-submit">💾 บันทึกข้อมูล</button>
+              <button type="button" class="btn-cancel" onclick="resetRawForm()">🔄 ล้างฟอร์ม</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- FORM: PASTEURIZED -->
+    <div id="admin-formPast" style="display:none">
+      <div class="card">
+        <div class="card-header">🥛 กรอกผลตรวจนมพาสเจอร์ไรซ์</div>
+        <div class="card-body">
+          <form id="pastForm" onsubmit="submitPast(event)">
+            <div class="form-grid cols3">
+              <div class="form-section-label">📅 ข้อมูลทั่วไป</div>
+              <div class="form-item">
+                <label>วันที่ตรวจ *</label>
+                <input type="date" id="p_date" required>
+              </div>
+              <div class="form-item">
+                <label>รสชาติ *</label>
+                <select id="p_flavor" required>
+                  <option value="">-- เลือก --</option>
+                  <option>พร่องมันเนย</option>
+                  <option>จืด</option>
+                  <option>หวาน</option>
+                  <option>ช็อคโกแลต</option>
+                </select>
+              </div>
+              <div class="form-item">
+                <label>บรรจุภัณฑ์</label>
+                <select id="p_pack">
+                  <option>ขวด</option><option>แกลอน</option><option>ถุง</option>
+                </select>
+              </div>
+
+              <div class="form-section-label">⚗️ คุณสมบัติทางเคมี</div>
+              <div class="form-item">
+                <label>% Fat</label>
+                <input type="number" id="p_fat" step="0.01" placeholder="เช่น 3.8">
+              </div>
+              <div class="form-item">
+                <label>°Brix</label>
+                <input type="number" id="p_brix" step="0.1" placeholder="เช่น 11">
+              </div>
+              <div class="form-item">
+                <label>pH</label>
+                <input type="number" id="p_ph" step="0.01" placeholder="เช่น 6.65">
+              </div>
+              <div class="form-item">
+                <label>Sold Non Fat</label>
+                <input type="number" id="p_snf" step="0.01" placeholder="เช่น 7.58">
+              </div>
+              <div class="form-item">
+                <label>Specific Gravity</label>
+                <input type="number" id="p_sg" step="0.0001" placeholder="เช่น 1.0275">
+              </div>
+
+              <div class="form-section-label">🌡 อุณหภูมิ & จุลินทรีย์</div>
+              <div class="form-item">
+                <label>Temp พาสเจอร์ (°C)</label>
+                <input type="number" id="p_tempPas" step="0.1" placeholder="เช่น 85.5" oninput="checkField('p_tempPas',75,80)">
+                <span class="field-hint" id="hint_p_tempPas">มาตรฐาน: 75 – 80°C</span>
+              </div>
+              <div class="form-item">
+                <label>Temp นมเย็น (°C)</label>
+                <input type="number" id="p_tempCold" step="0.1" placeholder="เช่น 3.5" oninput="checkFieldMax('p_tempCold',5)">
+                <span class="field-hint" id="hint_p_tempCold">มาตรฐาน: ≤ 5°C</span>
+              </div>
+              <div class="form-item">
+                <label>SPC (cfu/ml)</label>
+                <input type="number" id="p_spc" placeholder="เช่น 3" oninput="checkFieldMax('p_spc',1000)">
+                <span class="field-hint" id="hint_p_spc">มาตรฐาน: ≤ 1,000</span>
+              </div>
+              <div class="form-item">
+                <label>Coliform (cfu/ml)</label>
+                <input type="number" id="p_col" placeholder="เช่น 0" oninput="checkFieldMax('p_col',10)">
+                <span class="field-hint" id="hint_p_col">มาตรฐาน: ≤ 10</span>
+              </div>
+              <div class="form-item">
+                <label>E. coli</label>
+                <select id="p_ecoli">
+                  <option value="ไม่พบ">✓ ไม่พบ</option>
+                  <option value="พบ">✗ พบ</option>
+                </select>
+              </div>
+              <div class="form-item">
+                <label>Peroxidase</label>
+                <select id="p_perox">
+                  <option value="Negative">✓ Negative</option>
+                  <option value="Positive">✗ Positive</option>
+                </select>
+              </div>
+            </div>
+            <div style="margin-top:24px">
+              <button type="submit" class="btn-submit">💾 บันทึกข้อมูล</button>
+              <button type="button" class="btn-cancel" onclick="document.getElementById('pastForm').reset()">🔄 ล้างฟอร์ม</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- MANAGE: RAW MILK -->
+    <div id="admin-manageRaw" style="display:none">
+      <div class="card">
+        <div class="card-header">📋 จัดการข้อมูลน้ำนมดิบ</div>
+        <div class="card-body" style="padding:0">
+          <div class="table-wrap" style="border:none;border-radius:0">
+            <table>
+              <thead>
+                <tr>
+                  <th style="text-align:left">วันที่</th><th>ถัง</th>
+                  <th>อุณหภูมิ</th><th>pH</th><th>%Fat</th><th>SNF</th>
+                  <th>SPC</th><th>Coliform</th><th>Antibiotic</th><th>จัดการ</th>
+                </tr>
+              </thead>
+              <tbody id="manageRawBody">
+                <tr><td colspan="10" class="loading">กำลังโหลด...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MANAGE: PASTEURIZED -->
+    <div id="admin-managePast" style="display:none">
+      <div class="card">
+        <div class="card-header">📋 จัดการข้อมูลนมพาสเจอร์ไรซ์</div>
+        <div class="card-body" style="padding:0">
+          <div class="table-wrap" style="border:none;border-radius:0">
+            <table>
+              <thead>
+                <tr>
+                  <th style="text-align:left">วันที่</th><th>รสชาติ</th>
+                  <th>%Fat</th><th>°Brix</th><th>Temp พาส</th>
+                  <th>SPC</th><th>Coliform</th><th>E.coli</th><th>Peroxidase</th><th>จัดการ</th>
+                </tr>
+              </thead>
+              <tbody id="managePastBody">
+                <tr><td colspan="10" class="loading">กำลังโหลด...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /app -->
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     JAVASCRIPT
+═══════════════════════════════════════════════════════════════════════ -->
+<script>
+// ┌─────────────────────────────────────────────────────────────────────┐
+// │  ⚙️  CONFIG — แก้ค่านี้หลัง deploy Google Apps Script             │
+// └─────────────────────────────────────────────────────────────────────┘
+const CONFIG = {
+  // วาง URL ของ Google Apps Script Web App ตรงนี้หลัง Deploy
+  API_URL: "https://script.google.com/macros/s/AKfycbyvJ1ESio7RNPm19ZMMo_jh79-AnkpcrM1SBo7HwQ20/exec",
+
+  // Admin credentials (เปลี่ยนก่อนใช้งานจริง!)
+  ADMIN_USER: "admin",
+  ADMIN_PASS: "milk@2569",
+};
+
+// ┌─────────────────────────────────────────────────────────────────────┐
+// │  STATE                                                               │
+// └─────────────────────────────────────────────────────────────────────┘
+let isAdmin = false;
+let rawData = [];
+let pastData = [];
+let currentAdminTab = 'formRaw';
+
+// ┌─────────────────────────────────────────────────────────────────────┐
+// │  NAVIGATION                                                          │
+// └─────────────────────────────────────────────────────────────────────┘
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  event && event.currentTarget && event.currentTarget.classList.add('active');
+  if (id === 'summary') loadSummary();
+  if (id === 'daily')   loadDailyData();
+  if (id === 'adminPanel') { loadManageRaw(); loadManagePast(); }
+}
+
+function requireAdmin(pageId) {
+  if (isAdmin) { showPage(pageId); document.getElementById('adminTab').classList.add('active'); }
+  else openLogin(pageId);
+}
+
+// ┌─────────────────────────────────────────────────────────────────────┐
+// │  LOGIN                                                               │
+// └─────────────────────────────────────────────────────────────────────┘
+let _pendingPage = null;
+function openLogin(pending) {
+  _pendingPage = pending || null;
+  document.getElementById('loginModal').classList.add('show');
+  setTimeout(() => document.getElementById('loginUser').focus(), 100);
+}
+function closeLogin() {
+  document.getElementById('loginModal').classList.remove('show');
+  document.getElementById('loginError').style.display = 'none';
+  document.getElementById('loginUser').value = '';
+  document.getElementById('loginPass').value = '';
+}
+function doLogin() {
+  const u = document.getElementById('loginUser').value.trim();
+  const p = document.getElementById('loginPass').value.trim();
+  if (u === CONFIG.ADMIN_USER && p === CONFIG.ADMIN_PASS) {
+    isAdmin = true;
+    closeLogin();
+    document.getElementById('adminNavRight').style.display = 'flex';
+    showToast('✅ เข้าสู่ระบบสำเร็จ', 'success');
+    if (_pendingPage) showPage(_pendingPage);
+    document.getElementById('adminTab').classList.add('active');
+  } else {
+    document.getElementById('loginError').style.display = 'block';
+    document.getElementById('loginPass').value = '';
+  }
+}
+function logout() {
+  isAdmin = false;
+  document.getElementById('adminNavRight').style.display = 'none';
+  showPage('summary');
+  showToast('ออกจากระบบแล้ว');
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLogin(); });
+
+// ┌─────────────────────────────────────────────────────────────────────┐
+// │  ADMIN INNER TABS                                                    │
+// └─────────────────────────────────────────────────────────────────────┘
+function showAdminTab(tab) {
+  ['formRaw','formPast','manageRaw','managePast'].forEach(t => {
+    document.getElementById('admin-'+t).style.display = 'none';
+    const btn = document.getElementById('tab'+t.charAt(0).toUpperCase()+t.slice(1));
+    if (btn) { btn.className = 'btn-cancel'; }
+  });
+  document.getElementById('admin-'+tab).style.display = 'block';
+  const btn = document.getElementById('tab'+tab.charAt(0).toUpperCase()+tab.slice(1));
+  if (btn) btn.className = 'btn-submit';
+  currentAdminTab = tab;
+  if (tab === 'manageRaw')  loadManageRaw();
+  if (tab === 'managePast') loadManagePast();
+}
+
+// ┌─────────────────────────────────────────────────────────────────────┐
+// │  API CALLS                                                           │
+// └─────────────────────────────────────────────────────────────────────┘
+async function apiGet(action, params = {}) {
+  const url = new URL(CONFIG.API_URL);
+  url.searchParams.set('action', action);
+  Object.entries(params).forEach(([k,v]) => url.searchParams.set(k, v));
+  const res = await fetch(url.toString());
+  return res.json();
+}
+
+async function apiPost(action, data) {
+  const body = JSON.stringify({ action, ...data });
+  const res = await fetch(CONFIG.API_URL, {
+    method: 'POST', body,
+    headers: { 'Content-Type': 'text/plain' }, // avoid CORS preflight
+  });
+  return res.json();
+}
+
+// ┌─────────────────────────────────────────────────────────────────────┐
+// │  LOAD SUMMARY                                                        │
+// └─────────────────────────────────────────────────────────────────────┘
+const STANDARDS = [
+  { key:'temp',  label:'🌡 อุณหภูมิ',       std:'< 6°C',          check: v => v < 6 },
+  { key:'ph',    label:'⚗️ pH',             std:'6.6 – 6.9',       check: v => v>=6.6 && v<=6.9 },
+  { key:'fat',   label:'🥛 % Fat',          std:'≥ 3.5%',          check: v => v >= 3.5 },
+  { key:'snf',   label:'📐 Solid Non Fat',  std:'≥ 8.25%',         check: v => v >= 8.25 },
+  { key:'ts',    label:'🔬 Total Solids',   std:'12.5 – 12.7%',    check: v => v>=12.5 && v<=12.7 },
+  { key:'sg',    label:'⚖️ Specific Gravity',std:'1.028 – 1.034',  check: v => v>=1.028 && v<=1.034 },
+  { key:'sc',    label:'🦠 Somatic Cells',  std:'≤ 500,000',       check: v => v <= 500000 },
+  { key:'spc',   label:'🧫 SPC',            std:'≤ 400,000 cfu/ml',check: v => v <= 400000 },
+  { key:'col',   label:'🧪 Coliform',       std:'≤ 1,000 cfu/ml',  check: v => v <= 1000 },
+  { key:'mb',    label:'🔵 Methylene Blue', std:'≤ 4 ชม.',         check: v => v <= 4 },
+  { key:'res',   label:'🟣 Resazurin',      std:'≥ เกรด 4.5',      check: v => v >= 4.5 },
+  { key:'anti',  label:'💊 Antibiotic',     std:'ไม่พบ',           check: v => v === 'ไม่พบ' },
+];
+
+async function loadSummary() {
+  try {
+    const data = await apiGet('getRaw');
+    rawData = data.rows || [];
+    renderSummaryCards();
+    renderSummaryTable();
+
+    const pastRes = await apiGet('getPast');
+    pastData = pastRes.rows || [];
+    renderPastSummary();
+  } catch(e) {
+    document.getElementById('metricsContainer').innerHTML =
+      `<div class="warn-box">⚠️ ไม่สามารถเชื่อมต่อ API ได้ — กรุณาตั้งค่า API_URL ใน CONFIG<br><small style="font-family:var(--mono)">${CONFIG.API_URL}</small></div>`;
+  }
+}
+
+function avg(arr, key) {
+  const vals = arr.map(r => parseFloat(r[key])).filter(v => !isNaN(v));
+  return vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : null;
+}
+function mode(arr, key) {
+  const vals = arr.map(r => r[key]).filter(Boolean);
+  return vals.length ? vals[0] : null; // simplification for text fields
+}
+
+function renderSummaryCards() {
+  const now = new Date();
+  document.getElementById('summaryMonth').textContent =
+    `ข้อมูลทั้งหมด ${rawData.length} รายการ | อัปเดตล่าสุด: ${now.toLocaleDateString('th-TH')}`;
+
+  if (!rawData.length) {
+    document.getElementById('metricsContainer').innerHTML =
+      '<div class="warn-box">⚠️ ยังไม่มีข้อมูลในระบบ — Admin กรอกข้อมูลได้ที่เมนู Admin</div>';
+    return;
+  }
+
+  const metrics = [
+    { label:'🌡 อุณหภูมิ', val: avg(rawData,'temp'), unit:'°C', std:'< 6°C', pass: v => v < 6, decimals:2 },
+    { label:'⚗️ pH',       val: avg(rawData,'ph'),   unit:'',   std:'6.6–6.9', pass: v => v>=6.6&&v<=6.9, decimals:3 },
+    { label:'🥛 % Fat',    val: avg(rawData,'fat'),  unit:'%',  std:'≥ 3.5%', pass: v => v>=3.5, decimals:2 },
+    { label:'📐 SNF',      val: avg(rawData,'snf'),  unit:'%',  std:'≥ 8.25%', pass: v => v>=8.25, decimals:2 },
+    { label:'🔬 Total Solids', val: avg(rawData,'ts'), unit:'%', std:'12.5–12.7%', pass: v=>v>=12.5&&v<=12.7, decimals:2 },
+    { label:'⚖️ Sp.Gravity', val: avg(rawData,'sg'), unit:'', std:'1.028–1.034', pass: v=>v>=1.028&&v<=1.034, decimals:5 },
+    { label:'🦠 Somatic Cells', val: avg(rawData,'sc'), unit:'', std:'≤ 500,000', pass: v=>v<=500000, decimals:0 },
+    { label:'🧫 SPC', val: avg(rawData,'spc'), unit:' cfu/ml', std:'≤ 400,000', pass: v=>v<=400000, decimals:0 },
+    { label:'🧪 Coliform', val: avg(rawData,'col'), unit:' cfu/ml', std:'≤ 1,000', pass: v=>v<=1000, decimals:1 },
+    { label:'💊 Antibiotic', val: null, valText:'ไม่พบ', std:'ไม่พบ', pass: ()=>true, decimals:0 },
+    { label:'🔵 Methylene Blue', val: avg(rawData,'mb'), unit:' ชม.', std:'≤ 4 ชม.', pass: v=>v<=4, decimals:0 },
+    { label:'🟣 Resazurin', val: avg(rawData,'res'), unit:'', std:'≥ เกรด 4.5', pass: v=>v>=4.5, decimals:1 },
+  ];
+
+  const html = metrics.map((m,i) => {
+    const vDisplay = m.valText || (m.val !== null ? (+m.val.toFixed(m.decimals)).toLocaleString('th-TH') + m.unit : '—');
+    const status = m.val !== null ? (m.pass(m.val) ? 'pass' : 'warn') : 'pass';
+    const pillText = status === 'pass' ? '✓ ผ่านมาตรฐาน' : '~ ต่ำกว่าเกณฑ์';
+    return `<div class="metric-card ${status}" style="animation-delay:${i*0.05}s">
+      <div class="metric-label">${m.label}</div>
+      <div class="metric-value" style="${m.val===null||m.decimals>2?'font-size:18px':''}">${vDisplay}</div>
+      <div class="metric-std">มาตรฐาน: ${m.std}</div>
+      <span class="pill ${status}">${pillText}</span>
+    </div>`;
+  }).join('');
+  document.getElementById('metricsContainer').innerHTML = `<div class="metrics-grid">${html}</div>`;
+}
+
+function renderSummaryTable() {
+  if (!rawData.length) { document.getElementById('summaryTableBody').innerHTML = '<tr><td colspan="4">ยังไม่มีข้อมูล</td></tr>'; return; }
+  const rows = STANDARDS.map(s => {
+    let avgVal, display;
+    if (s.key === 'anti') {
+      display = 'ไม่พบ'; avgVal = 'ไม่พบ';
+    } else {
+      const v = avg(rawData, s.key);
+      avgVal = v;
+      display = v !== null ? v.toFixed(s.key==='sg'?5:s.key==='sc'||s.key==='spc'||s.key==='col'?0:3) : '—';
+    }
+    const pass = s.key === 'anti' ? true : (avgVal !== null ? s.check(avgVal) : true);
+    const cls = pass ? 'pass' : 'warn';
+    return `<tr>
+      <td>${s.label}</td>
+      <td style="font-family:var(--mono);font-size:12px;color:var(--muted)">${s.std}</td>
+      <td><span class="chip ${cls}">${display}</span></td>
+      <td><span class="pill ${cls}">${pass?'✓ ผ่าน':'~ ต่ำกว่าเกณฑ์'}</span></td>
+    </tr>`;
+  }).join('');
+  document.getElementById('summaryTableBody').innerHTML = rows;
+}
+
+function renderPastSummary() {
+  const flavors = ['พร่องมันเนย','จืด','หวาน','ช็อคโกแลต'];
+  const rows = flavors.map(f => {
+    const d = pastData.filter(r => r.flavor === f);
+    if (!d.length) return `<tr><td><span style="background:#e8f0f7;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:600">${f}</span></td><td colspan="9" style="color:var(--muted);font-size:12px">ยังไม่มีข้อมูล</td></tr>`;
+    const a = k => { const v=avg(d,k); return v!==null?v.toFixed(2):'—'; };
+    const all = k => d.every(r => r[k] === 'ไม่พบ' || r[k] === 'Negative' || parseFloat(r[k])===0);
+    return `<tr>
+      <td><span style="background:#e8f0f7;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:600">${f}</span></td>
+      <td>${a('fat')}%</td><td>${a('brix')}</td>
+      <td><span class="chip pass">${a('tempPas')}°C</span></td>
+      <td><span class="chip pass">${a('tempCold')}°C</span></td>
+      <td>${a('spc')}</td>
+      <td><span class="chip pass">0</span></td>
+      <td><span class="chip pass">ไม่พบ</span></td>
+      <td><span class="chip pass">Negative</span></td>
+      <td><span class="pill pass">✓ ผ่าน</span></td>
+    </tr>`;
+  });
+  document.getElementById('pastTableBody').innerHTML = rows.join('');
+  document.getElementById('summaryInfoBox').style.display = 'block';
+}
+
+// ┌─────────────────────────────────────────────────────────────────────┐
+// │  DAILY DATA                                                          │
+// └─────────────────────────────────────────────────────────────────────┘
+async function loadDailyData() {
+  document.getElementById('dailyTableBody').innerHTML =
+    '<tr><td colspan="15" class="loading"><div class="spinner"></div><br>กำลังโหลด...</td></tr>';
+  try {
+    const data = await apiGet('getRaw');
+    rawData = data.rows || [];
+    renderDailyTable(rawData);
+
+    const pastRes = await apiGet('getPast');
+    pastData = pastRes.rows || [];
+    renderPastDaily(pastData);
+
+    populateMonthFilter(rawData);
+  } catch(e) {
+    document.getElementById('dailyTableBody').innerHTML =
+      `<tr><td colspan="15"><div class="warn-box">⚠️ ไม่สามารถโหลดข้อมูล — ตรวจสอบ API_URL</div></td></tr>`;
+  }
+}
+
+function renderDailyTable(rows) {
+  document.getElementById('recordCount').textContent = `${rows.length} รายการ`;
+  if (!rows.length) {
+    document.getElementById('dailyTableBody').innerHTML = '<tr><td colspan="15" style="text-align:center;color:var(--muted);padding:24px">ยังไม่มีข้อมูล</td></tr>';
+    return;
+  }
+  const html = rows.map(r => {
+    const phOk = r.ph >= 6.6 && r.ph <= 6.9;
+    const fatOk = r.fat >= 3.5;
+    const snfOk = r.snf >= 8.25;
+    return `<tr>
+      <td style="font-family:var(--mono);font-size:12px">${r.date||'—'}</td>
+      <td>${r.tank||'—'}</td>
+      <td><span class="chip ${parseFloat(r.temp)<6?'pass':'red'}">${r.temp||'—'}</span></td>
+      <td><span class="chip pass">✓</span></td>
+      <td><span class="chip ${phOk?'pass':'warn'}">${r.ph||'—'}</span></td>
+      <td>${r.ts||'—'}</td>
+      <td><span class="chip ${fatOk?'pass':'warn'}">${r.fat||'—'}</span></td>
+      <td><span class="chip ${snfOk?'pass':'warn'}">${r.snf||'—'}</span></td>
+      <td>${r.sg||'—'}</td>
+      <td>${r.sc||'—'}</td>
+      <td><span class="chip ${r.anti==='ไม่พบ'?'pass':'red'}">${r.anti||'—'}</span></td>
+      <td>${r.spc||'—'}</td>
+      <td>${r.col||'—'}</td>
+      <td>${r.mb||'—'}</td>
+      <td>${r.res||'—'}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('dailyTableBody').innerHTML = html;
+}
+
+function renderPastDaily(rows) {
+  if (!rows.length) {
+    document.getElementById('pastDailyBody').innerHTML = '<tr><td colspan="14" style="text-align:center;color:var(--muted);padding:24px">ยังไม่มีข้อมูล</td></tr>';
+    return;
+  }
+  const html = rows.map(r => `<tr>
+    <td style="font-family:var(--mono);font-size:12px">${r.date||'—'}</td>
+    <td><span style="background:#e8f0f7;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600">${r.flavor||'—'}</span></td>
+    <td>${r.pack||'—'}</td>
+    <td>${r.fat||'—'}</td><td>${r.brix||'—'}</td><td>${r.ph||'—'}</td>
+    <td>${r.snf||'—'}</td><td>${r.sg||'—'}</td>
+    <td><span class="chip pass">${r.tempPas||'—'}°C</span></td>
+    <td><span class="chip pass">${r.tempCold||'—'}°C</span></td>
+    <td>${r.spc||'—'}</td><td>${r.col||'—'}</td>
+    <td><span class="chip ${r.ecoli==='ไม่พบ'?'pass':'red'}">${r.ecoli||'—'}</span></td>
+    <td><span class="chip ${r.perox==='Negative'?'pass':'red'}">${r.perox||'—'}</span></td>
+  </tr>`).join('');
+  document.getElementById('pastDailyBody').innerHTML = html;
+}
+
+function populateMonthFilter(rows) {
+  const months = [...new Set(rows.map(r => r.date ? r.date.slice(0,7) : ''))].filter(Boolean).sort().reverse();
+  const sel = document.getElementById('filterMonth');
+  sel.innerHTML = '<option value="">— เดือนทั้งหมด —</option>' +
+    months.map(m => `<option value="${m}">${m}</option>`).join('');
+}
+
+function filterTable() {
+  const q = document.getElementById('filterSearch').value.toLowerCase();
+  const m = document.getElementById('filterMonth').value;
+  const filtered = rawData.filter(r =>
+    (!m || (r.date||'').startsWith(m)) &&
+    (!q || Object.values(r).some(v => String(v).toLowerCase().includes(q)))
+  );
+  renderDailyTable(filtered);
+}
+
+// ┌─────────────────────────────────────────────────────────────────────┐
+// │  MANAGE TABLES                                                       │
+// └─────────────────────────────────────────────────────────────────────┘
+async function loadManageRaw() {
+  const data = await apiGet('getRaw').catch(()=>({ rows: [] }));
+  rawData = data.rows || [];
+  const html = rawData.length ? rawData.map((r,i) => `<tr>
+    <td style="font-family:var(--mono);font-size:12px">${r.date||'—'}</td>
+    <td>${r.tank||'—'}</td>
+    <td>${r.temp||'—'}</td><td>${r.ph||'—'}</td>
+    <td>${r.fat||'—'}</td><td>${r.snf||'—'}</td>
+    <td>${r.spc||'—'}</td><td>${r.col||'—'}</td>
+    <td><span class="chip ${r.anti==='ไม่พบ'?'pass':'red'}">${r.anti||'—'}</span></td>
+    <td>
+      <button class="btn-edit" onclick="editRaw(${i})">✏️ แก้ไข</button>
+      <button class="btn-danger" onclick="deleteRow('raw',${i})">🗑️ ลบ</button>
+    </td>
+  </tr>`).join('') : '<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:24px">ยังไม่มีข้อมูล</td></tr>';
+  document.getElementById('manageRawBody').innerHTML = html;
+}
+
+async function loadManagePast() {
+  const data = await apiGet('getPast').catch(()=>({ rows: [] }));
+  pastData = data.rows || [];
+  const html = pastData.length ? pastData.map((r,i) => `<tr>
+    <td style="font-family:var(--mono);font-size:12px">${r.date||'—'}</td>
+    <td>${r.flavor||'—'}</td>
+    <td>${r.fat||'—'}</td><td>${r.brix||'—'}</td>
+    <td>${r.tempPas||'—'}</td><td>${r.spc||'—'}</td><td>${r.col||'—'}</td>
+    <td><span class="chip ${r.ecoli==='ไม่พบ'?'pass':'red'}">${r.ecoli||'—'}</span></td>
+    <td><span class="chip ${r.perox==='Negative'?'pass':'red'}">${r.perox||'—'}</span></td>
+    <td>
+      <button class="btn-edit" onclick="editPast(${i})">✏️ แก้ไข</button>
+      <button class="btn-danger" onclick="deleteRow('past',${i})">🗑️ ลบ</button>
+    </td>
+  </tr>`).join('') : '<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:24px">ยังไม่มีข้อมูล</td></tr>';
+  document.getElementById('managePastBody').innerHTML = html;
+}
+
+// ┌─────────────────────────────────────────────────────────────────────┐
+// │  SUBMIT FORMS                                                        │
+// └─────────────────────────────────────────────────────────────────────┘
+async function submitRaw(e) {
+  e.preventDefault();
+  const row = {
+    date: document.getElementById('r_date').value,
+    tank: document.getElementById('r_tank').value,
+    temp: document.getElementById('r_temp').value,
+    color: document.getElementById('r_color').value,
+    smell: document.getElementById('r_smell').value,
+    texture: document.getElementById('r_texture').value,
+    alcohol: document.getElementById('r_alcohol').value,
+    clot: document.getElementById('r_clot').value,
+    ph: document.getElementById('r_ph').value,
+    ts: document.getElementById('r_ts').value,
+    fat: document.getElementById('r_fat').value,
+    snf: document.getElementById('r_snf').value,
+    sg: document.getElementById('r_sg').value,
+    mb: document.getElementById('r_mb').value,
+    res: document.getElementById('r_res').value,
+    sc: document.getElementById('r_sc').value,
+    anti: document.getElementById('r_anti').value,
+    spc: document.getElementById('r_spc').value,
+    col: document.getElementById('r_col').value,
+  };
+  try {
+    const res = await apiPost('addRaw', row);
+    if (res.success) { showToast('✅ บันทึกข้อมูลน้ำนมดิบสำเร็จ!', 'success'); resetRawForm(); }
+    else showToast('❌ บันทึกไม่สำเร็จ: ' + res.error, 'error');
+  } catch(err) { showToast('❌ ไม่สามารถเชื่อมต่อ API', 'error'); }
+}
+
+async function submitPast(e) {
+  e.preventDefault();
+  const row = {
+    date: document.getElementById('p_date').value,
+    flavor: document.getElementById('p_flavor').value,
+    pack: document.getElementById('p_pack').value,
+    fat: document.getElementById('p_fat').value,
+    brix: document.getElementById('p_brix').value,
+    ph: document.getElementById('p_ph').value,
+    snf: document.getElementById('p_snf').value,
+    sg: document.getElementById('p_sg').value,
+    tempPas: document.getElementById('p_tempPas').value,
+    tempCold: document.getElementById('p_tempCold').value,
+    spc: document.getElementById('p_spc').value,
+    col: document.getElementById('p_col').value,
+    ecoli: document.getElementById('p_ecoli').value,
+    perox: document.getElementById('p_perox').value,
+  };
+  try {
+    const res = await apiPost('addPast', row);
+    if (res.success) { showToast('✅ บันทึกข้อมูลนมพาสเจอร์สำเร็จ!', 'success'); document.getElementById('pastForm').reset(); }
+    else showToast('❌ บันทึกไม่สำเร็จ: ' + res.error, 'error');
+  } catch(err) { showToast('❌ ไม่สามารถเชื่อมต่อ API', 'error'); }
+}
+
+async function deleteRow(type, idx) {
+  if (!confirm('ยืนยันการลบข้อมูลนี้?')) return;
+  const id = type === 'raw' ? rawData[idx]?.id : pastData[idx]?.id;
+  try {
+    const res = await apiPost('delete', { type, id });
+    if (res.success) { showToast('🗑️ ลบข้อมูลแล้ว', 'success'); type==='raw'?loadManageRaw():loadManagePast(); }
+    else showToast('❌ ลบไม่สำเร็จ', 'error');
+  } catch(e) { showToast('❌ ไม่สามารถเชื่อมต่อ API', 'error'); }
+}
+
+function editRaw(idx) {
+  const r = rawData[idx];
+  showAdminTab('formRaw');
+  Object.entries(r).forEach(([k,v]) => {
+    const el = document.getElementById('r_'+k);
+    if (el) el.value = v;
+  });
+  window.scrollTo({ top: 200, behavior: 'smooth' });
+  showToast('📝 โหลดข้อมูลแล้ว — แก้ไขและกดบันทึก');
+}
+function editPast(idx) {
+  const r = pastData[idx];
+  showAdminTab('formPast');
+  const map = { date:'p_date', flavor:'p_flavor', pack:'p_pack', fat:'p_fat', brix:'p_brix', ph:'p_ph', snf:'p_snf', sg:'p_sg', tempPas:'p_tempPas', tempCold:'p_tempCold', spc:'p_spc', col:'p_col', ecoli:'p_ecoli', perox:'p_perox' };
+  Object.entries(map).forEach(([k,id]) => { const el=document.getElementById(id); if(el) el.value=r[k]||''; });
+  window.scrollTo({ top: 200, behavior: 'smooth' });
+  showToast('📝 โหลดข้อมูลแล้ว — แก้ไขและกดบันทึก');
+}
+
+// ┌─────────────────────────────────────────────────────────────────────┐
+// │  FIELD VALIDATION HINTS                                              │
+// └─────────────────────────────────────────────────────────────────────┘
+function checkField(id, min, max) {
+  const el = document.getElementById(id);
+  const hint = document.getElementById('hint_' + id);
+  const v = parseFloat(el.value);
+  const ok = !isNaN(v) && v >= min && v <= max;
+  el.className = ok || isNaN(v) ? '' : 'warn-field';
+  if (hint) { hint.className = ok || isNaN(v) ? 'field-hint' : 'field-hint warn'; }
+}
+function checkFieldMin(id, min) {
+  const el = document.getElementById(id);
+  const hint = document.getElementById('hint_' + id);
+  const v = parseFloat(el.value);
+  const ok = !isNaN(v) && v >= min;
+  el.className = ok || isNaN(v) ? '' : 'warn-field';
+  if (hint) hint.className = ok || isNaN(v) ? 'field-hint' : 'field-hint warn';
+}
+function checkFieldMax(id, max) {
+  const el = document.getElementById(id);
+  const hint = document.getElementById('hint_' + id);
+  const v = parseFloat(el.value);
+  const ok = !isNaN(v) && v <= max;
+  el.className = ok || isNaN(v) ? '' : 'warn-field';
+  if (hint) hint.className = ok || isNaN(v) ? 'field-hint' : 'field-hint warn';
+}
+function resetRawForm() {
+  document.getElementById('rawForm').reset();
+  document.querySelectorAll('#rawForm input').forEach(el => { el.className = ''; });
+  document.querySelectorAll('#rawForm .field-hint').forEach(el => { el.className = 'field-hint'; });
+}
+
+// ┌─────────────────────────────────────────────────────────────────────┐
+// │  TOAST                                                               │
+// └─────────────────────────────────────────────────────────────────────┘
+function showToast(msg, type = '') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (type ? ' ' + type : '');
+  setTimeout(() => t.classList.remove('show'), 3200);
+}
+
+// ┌─────────────────────────────────────────────────────────────────────┐
+// │  INIT                                                                │
+// └─────────────────────────────────────────────────────────────────────┘
+document.addEventListener('DOMContentLoaded', () => {
+  // Set today as default date for forms
+  const today = new Date().toISOString().slice(0,10);
+  ['r_date','p_date'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = today;
+  });
+  loadSummary();
+});
+</script>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     GOOGLE APPS SCRIPT — วางใน Google Apps Script Editor
+     (ไฟล์นี้เป็นคู่มือ ไม่ต้องรันในเบราว์เซอร์)
+═══════════════════════════════════════════════════════════════════════
+<script type="text/apps-script-guide">
+// ════════════════════════════════════════════════════════
+// GOOGLE APPS SCRIPT — Code.gs
+// วางโค้ดทั้งหมดนี้ใน Google Apps Script
+// ════════════════════════════════════════════════════════
+
+const SHEET_ID = "YOUR_GOOGLE_SHEET_ID"; // ใส่ ID ของ Google Sheet
+const SHEET_RAW  = "น้ำนมดิบ";
+const SHEET_PAST = "นมพาสเจอร์";
+
+function doGet(e) {
+  const action = e.parameter.action;
+  let result;
+  if      (action === 'getRaw')  result = getRows(SHEET_RAW);
+  else if (action === 'getPast') result = getRows(SHEET_PAST);
+  else result = { error: 'unknown action' };
+  return ContentService
+    .createTextOutput(JSON.stringify(result))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function doPost(e) {
+  const body = JSON.parse(e.postData.contents);
+  const action = body.action;
+  let result;
+  if      (action === 'addRaw')  result = addRow(SHEET_RAW, body);
+  else if (action === 'addPast') result = addRow(SHEET_PAST, body);
+  else if (action === 'delete')  result = deleteRow(body.type, body.id);
+  else result = { error: 'unknown action' };
+  return ContentService
+    .createTextOutput(JSON.stringify(result))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function getRows(sheetName) {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  const sheet = ss.getSheetByName(sheetName);
+  if (!sheet) return { rows: [] };
+  const data = sheet.getDataRange().getValues();
+  if (data.length < 2) return { rows: [] };
+  const headers = data[0];
+  const rows = data.slice(1).map((row, i) => {
+    const obj = { id: i + 2 }; // row number in sheet
+    headers.forEach((h, j) => obj[h] = row[j]);
+    return obj;
+  });
+  return { rows };
+}
+
+function addRow(sheetName, data) {
+  try {
+    const ss = SpreadsheetApp.openById(SHEET_ID);
+    let sheet = ss.getSheetByName(sheetName);
+    if (!sheet) {
+      sheet = ss.insertSheet(sheetName);
+      // สร้าง header row
+      const headers = sheetName === SHEET_RAW
+        ? ['date','tank','temp','color','smell','texture','alcohol','clot','ph','ts','fat','snf','sg','mb','res','sc','anti','spc','col']
+        : ['date','flavor','pack','fat','brix','ph','snf','sg','tempPas','tempCold','spc','col','ecoli','perox'];
+      sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+    }
+    const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+    const row = headers.map(h => data[h] !== undefined ? data[h] : '');
+    sheet.appendRow(row);
+    return { success: true };
+  } catch(err) {
+    return { success: false, error: err.message };
+  }
+}
+
+function deleteRow(type, rowNum) {
+  try {
+    const ss = SpreadsheetApp.openById(SHEET_ID);
+    const sheet = ss.getSheetByName(type === 'raw' ? SHEET_RAW : SHEET_PAST);
+    if (!sheet) return { success: false, error: 'Sheet not found' };
+    sheet.deleteRow(rowNum);
+    return { success: true };
+  } catch(err) {
+    return { success: false, error: err.message };
+  }
+}
+</script>
+-->
+
+</body>
+</html>
